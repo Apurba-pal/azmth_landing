@@ -10,23 +10,46 @@ import InteractiveHoverButton from "../components/ui/interactive-hover-button";
 import axios from "axios";
 import { Loader2 } from "lucide-react";
 import { Helmet } from "react-helmet";
+import { Volume2 } from "lucide-react";
+import { data } from "autoprefixer";
+
+const socket = new WebSocket("ws://localhost:8000/ws/user1");
 
 // Typewriter effect component
-const TypewriterText = ({ text }) => {
-  const [displayText, setDisplayText] = useState('');
+const TypewriterText = ({ text,id }) => {
+  const [displayText, setDisplayText] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [dataid, setText] = useState(text);
+  socket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    setText(data.id);
+  };
+
 
   useEffect(() => {
     if (currentIndex < text.length) {
       const timeout = setTimeout(() => {
-        setDisplayText(prev => prev + text[currentIndex]);
-        setCurrentIndex(c => c + 1);
-      }, 5);
+        setDisplayText((prev) => prev + text[currentIndex]);
+        setCurrentIndex((c) => c + 1);
+      }, 5); // Increased timeout for better readability
       return () => clearTimeout(timeout);
     }
   }, [currentIndex, text]);
+  
+  const handleplay = () => {
+    const data = {
+      id: dataid,
+    };
+    socket.send(data);  // Sending properly formatted JSON
+    
+  }
 
-  return <span>{displayText}</span>;
+  return (
+    <div className="flex items-end flex-col gap-2">
+      <span>{displayText}</span>
+      {id === dataid && <Volume2 onClick={handleplay} className="opacity-50" />}
+    </div>
+  );
 };
 
 const Home = () => {
@@ -41,21 +64,30 @@ const Home = () => {
     e.stopPropagation(); // Stop event propagation
     if (!input.trim()) return;
 
-  
     // Add user's message to the chat
     setMessages([...messages, { text: input, isUser: true }]);
     setIsLoading(true);
-  
+
     try {
       // Send the input to the API
-      const response = await axios.post("https://api.globaltfn.tech/getData", {
-        userInput: input,
-      });
-  
+      const response = await axios.post(
+        "https://api.globaltfn.tech/aboutazmth",
+        {
+          userInput: input,
+        }
+      );
+
       // Add the API response to the chat
+      console.log(response.data);
+      
       setMessages((prev) => [
         ...prev,
-        { text: response.data.data || "No response", isUser: false, isNew: true },
+        {
+          id: response.data.message,
+          text: response.data.data || "No response",
+          isUser: false,
+          isNew: true,
+        },
       ]);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -71,10 +103,13 @@ const Home = () => {
 
   return (
     <>
-        <Helmet>
-      <title>AZMTH - Home</title>
-      <meta name="description" content="Welcome to AZMTH - Your 24x7 AI assistant!" />
-    </Helmet>
+      <Helmet>
+        <title>AZMTH - Home</title>
+        <meta
+          name="description"
+          content="Welcome to AZMTH - Your 24x7 AI assistant!"
+        />
+      </Helmet>
       <div className="container mx-auto flex flex-col md:flex-row items-center gap-8">
         {/* Hero Section */}
         <header className="container px-4 py-16 flex flex-col items-start z-0">
@@ -106,7 +141,11 @@ const Home = () => {
               <InteractiveHoverButton
                 className="bg-gradient-to-r from-[#003e4b] to-[#00ff99] w-40 border-none hover:border-2 hover:border-white"
                 text="Join Waitlist"
-                onClick={() => window.open("https://forms.visme.co/formsPlayer/dm4rnj6e-azmth-waitlist")}
+                onClick={() =>
+                  window.open(
+                    "https://forms.visme.co/formsPlayer/dm4rnj6e-azmth-waitlist"
+                  )
+                }
               />
             </div>
           </div>
@@ -118,7 +157,10 @@ const Home = () => {
               {messages.length === 0 ? (
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white text-center">
                   <p className="text-xl mb-2">👋 Hey there!</p>
-                  <p className="text-gray-400">Let's chat about how I can help you schedule and manage your tasks.</p>
+                  <p className="text-gray-400">
+                    Let's chat about how I can help you schedule and manage your
+                    tasks.
+                  </p>
                 </div>
               ) : (
                 messages.map((message, index) => (
@@ -136,7 +178,7 @@ const Home = () => {
                       }`}
                     >
                       {message.isNew && !message.isUser ? (
-                        <TypewriterText text={message.text} />
+                        <TypewriterText text={message.text} id={message.id}/>
                       ) : (
                         message.text
                       )}
@@ -155,36 +197,36 @@ const Home = () => {
             </div>
 
             {/* Input Area */}
-            <form 
-  onSubmit={handleSubmit} 
-  className="flex gap-2"
-  onKeyDown={(e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSubmit(e);
-    }
-  }}
->
-  <input
-    type="text"
-    value={input}
-    onChange={(e) => setInput(e.target.value)}
-    className="flex-1 p-3 rounded-lg bg-[#1a2c31] text-white focus:outline-none focus:ring-2 focus:ring-[#00ff99]"
-    placeholder="Type your message..."
-  />
-  <Button
-    type="button" // Changed from "submit" to "button"
-    onClick={handleSubmit}
-    disabled={isLoading}
-    className="bg-gradient-to-r from-[#003e4b] to-[#00ff99] h-full"
-  >
-    {isLoading ? (
-      <Loader2 className="w-4 h-4 animate-spin" />
-    ) : (
-      'Send'
-    )}
-  </Button>
-</form>
+            <form
+              onSubmit={handleSubmit}
+              className="flex gap-2"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+            >
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="flex-1 p-3 rounded-lg bg-[#1a2c31] text-white focus:outline-none focus:ring-2 focus:ring-[#00ff99]"
+                placeholder="Type your message..."
+              />
+              <Button
+                type="button" // Changed from "submit" to "button"
+                onClick={handleSubmit}
+                disabled={isLoading}
+                className="bg-gradient-to-r from-[#003e4b] to-[#00ff99] h-full"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Send"
+                )}
+              </Button>
+            </form>
           </div>
         </div>
       </div>
@@ -226,7 +268,11 @@ const Home = () => {
           <InteractiveHoverButton
             className="bg-gradient-to-r from-[#003e4b] to-[#00ff99] w-48"
             text="Start Free Trial"
-            onClick={() => window.open("https://forms.visme.co/formsPlayer/dm4rnj6e-azmth-waitlist")}
+            onClick={() =>
+              window.open(
+                "https://forms.visme.co/formsPlayer/dm4rnj6e-azmth-waitlist"
+              )
+            }
           />
         </div>
       </section>
